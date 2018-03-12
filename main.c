@@ -3,6 +3,7 @@
 #include <string.h>
 #include "nordic_common.h"
 #include "nrf.h"
+#include "sensors.h"
 #include "app_error.h"
 #include "ble.h"
 #include "ble_hci.h"
@@ -84,129 +85,29 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
 }
 
 
-//Simulate some fake pressure data for the two classes
-
-    uint8_t simButt[5][18]           = {{0x12, 0x34, 0x56, 0x78, 0x90, 0xCA,0xFE, 0xF0, 0x0D, 0xC0, 0xFF, 0xEE, 0xBE, 0xEF, 0x87, 0x65, 0x43, 0x21},\
-                                    {0x12, 0x34, 0x56, 0x78, 0x90, 0xCA,0xFE, 0xF0, 0x0D, 0xC0, 0xFF, 0xEE, 0xBE, 0xEF, 0x87, 0x65, 0x43, 0x21},\
-                            {0x12, 0x34, 0x56, 0x78, 0x90, 0xCA,0xFE, 0xF0, 0x0D, 0xC0, 0xFF, 0xEE, 0xBE, 0xEF, 0x87, 0x65, 0x43, 0x21},\
-                            {0x12, 0x34, 0x56, 0x78, 0x90, 0xCA,0xFE, 0xF0, 0x0D, 0xC0, 0xFF, 0xEE, 0xBE, 0xEF, 0x87, 0x65, 0x43, 0x21},\
-                            {0x12, 0x34, 0x56, 0x78, 0x90, 0xCA,0xFE, 0xF0, 0x0D, 0xC0, 0xFF, 0xEE, 0xBE, 0xEF, 0x87, 0x65, 0x43, 0x21}};\
-
-
-    uint8_t simBack[5][8]           = {{0x12,0x34,0x56,0x78,0x90,0x00,0x13,0x37},\
-                                        {0x12,0x34,0x56,0x78,0x90,0x00,0x13,0x37},\
-                                        {0x12,0x34,0x56,0x78,0x90,0x00,0x13,0x37},\
-                                        {0x12,0x34,0x56,0x78,0x90,0x00,0x13,0x37},\
-                                        {0x12,0x34,0x56,0x78,0x90,0x00,0x13,0x37}};
-
-
-
-//Global Circular Buffer for averaging sensor readings
-#define CIRCULAR_BUFFER_SIZE 16
-#define NUM_BUTT_SENSORS 9
-#define NUM_BACK_SENSORS 4
-#define NUM_SIM_DATA 5
-#define NUM_MUX_OUTPUTS sizeof(muxPins)/sizeof(muxPins[0]);
-#define NUM_BACK_COLS sizeof(backColPins)/sizeof(backColPins[0]);
-#define NUM_BACK_COLS sizeof(buttColPins)/sizeof(buttColPins[0]);
-
-
-uint16_t buttBuffer[CIRCULAR_BUFFER_SIZE][9] = {0};
-
-uint16_t backBuffer[CIRCULAR_BUFFER_SIZE][4] = {0};
-
-uint32_t muxPins[3] = {NRF_GPIO_PIN_MAP(1,3),\
-                        NRF_GPIO_PIN_MAP(1,2),\
-                        NRF_GPIO_PIN_MAP(1,1)};
-
-uint32_t backColPins[2] = { NRF_GPIO_PIN_MAP(1,12),\
-                            NRF_GPIO_PIN_MAP(1,13)};
-
-uint32_t buttColPins[3] = { NRF_GPIO_PIN_MAP(1,4),\
-                            NRF_GPIO_PIN_MAP(1,5),\
-                            NRF_GPIO_PIN_MAP(1,6)};
-
-
-static inline void select_mux(uint8_t output){
-    if(output>NUM_MUX_OUTPUTS){
-        //Silently throw error
-        return;
-    }
-    for(size_t i=0;i<NUM_MUX_OUPUTS/2;i++){
-        nrf_gpio_pin_write(muxPins[i], output & 1<<i);
-    }
-}
-
-static inline void select_back_col(uint8_t output){
-    if(output>sizeof(backColPins)){
-        //Silently throw error
-        return;
-    }
-    for(size_t i=0; i<sizeof(backColPins); i++){
-        if(output == i){
-            nrf_gpio_pin_set(backColPins[i]);
-        }
-        else{
-            nrf_gpio_pin_clear(backColPins[i]);
-        }
-    }
-    return;
-}
-
-static inline void select_butt_col(uint8_t output){
-    if(output>sizeof(buttColPins)){
-        //Silently throw error
-        return;
-    }
-    for(size_t i=0; i<sizeof(buttColPins); i++){
-        if(output == i){
-            nrf_gpio_pin_set(buttColPins[i]);
-        }
-        else{
-            nrf_gpio_pin_clear(buttColPins[i]);
-        }
-    }
-    return;
-}
-
-static void chair_gpio_init(){
-    for(size_t i=0; i<sizeof(muxPins); i++){
-        nrf_gpio_cfg_default(muxPins[i]);
-        nrf_gpio_cfg_output(muxPins[i]);
-    }
-    
-    for(size_t i=0; i<sizeof(backColPins); i++){
-        nrf_gpio_cfg_default(backColPins[i]);
-        nrf_gpio_cfg_output(backColPins[i]);
-    }
-
-    for(size_t i=0; i<sizeof(buttColPins); i++){
-        nrf_gpio_cfg_default(buttColPins[i]);
-        nrf_gpio_cfg_output(buttColPins[i]);
-    }
-}
-
 
 static void pressure_timer_timeout_handler(void * p_context)
 {
     //Create/increment simulated posture
+    static size_t i=0; 
     i++;
     i = i%NUM_SIM_DATA;
-    static size_t i=0; 
     uint8_t buttValue[2*NUM_BUTT_SENSORS]={0};
     uint8_t backValue[2*NUM_BACK_SENSORS]={0};
     //Simulate data
     memcpy(&buttValue, simButt[i], sizeof(buttValue));
-    memset(&backValue, simBack[i], sizeof(backValue)); 
+    memcpy(&backValue, simBack[i], sizeof(backValue)); 
 
     //Alernatively, average circular buffer of sensor data
     for(size_t k; k<NUM_BUTT_SENSORS; k++){
         for(size_t j; j<CIRCULAR_BUFFER_SIZE;j++){
+            //TODO: cast from 16bit to 8 bit
                 buttValue[k] += buttBuffer[j][k]/CIRCULAR_BUFFER_SIZE;
         }
     }
     for(size_t k; k<NUM_BACK_SENSORS; k++){
         for(size_t j; j<CIRCULAR_BUFFER_SIZE;j++){
+            //TODO: cast from 16 bit to 8 bit
                 backValue[k] += backBuffer[j][k]/CIRCULAR_BUFFER_SIZE;
         }
     }
@@ -228,17 +129,13 @@ static void accel_timer_timeout_handler(void * p_context)
     i = i%CIRCULAR_BUFFER_SIZE;
 
     //Sample the sensors here
-    //
-    //
-    //Do maths here
-    //
-    //
-    //
-    //for numberOfSensors{
-    //buttBuffer[i][sensorNumber]=analogRead(sensorNumber)
-    //backBuffer[i][sensorNumber]=analogRead(sensorNumber)
-    //}
-    
+    uint16_t buttValue[9];
+    uint16_t backValue[4];
+    get_butt_matrix(buttValue);
+    get_back_matrix(backValue);
+    memcpy(&buttBuffer[i], buttValue, sizeof(buttValue));
+    memcpy(&backBuffer[i], backValue, sizeof(backValue));
+
     //Blinky light ot show it's happening
     nrf_gpio_pin_toggle(LED_2);
 }
@@ -670,6 +567,9 @@ int main(void)
     services_init();
     advertising_init();
     conn_params_init();
+
+    sensors_init();
+
 
     // Start execution.
     application_timers_start();

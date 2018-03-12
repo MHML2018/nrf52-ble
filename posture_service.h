@@ -54,6 +54,6 @@ void posture_service_init(ble_ps_t * p_posture_service);
 void pressure_characteristic_update(ble_ps_t *p_posture_service, uint8_t *pressureValue);
 
 
-void accel_characteristic_update(ble_ps_t *p_posture_service, int8_t *accelValue);
+void accel_characteristic_update(ble_ps_t *p_posture_service, uint8_t *accelValue);
 
 #endif  /* _ POSTURE_SERVICE_H__ */

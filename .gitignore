@@ -1,3 +1,7 @@
-pca10040/*
+pca10040/s132/armgcc/_build/*
+s132/armgcc/_build/*
+armgcc/_build/*
+_build/*
+*.o
 *.swp
 *.swo

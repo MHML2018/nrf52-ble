@@ -207,7 +207,7 @@ void pressure_characteristic_update(ble_ps_t *p_posture_service, uint8_t *pressu
 }
 
 // ALREADY_DONE_FOR_YOU: Function to be called when updating characteristic value
-void accel_characteristic_update(ble_ps_t *p_posture_service, int8_t *accelValue)
+void accel_characteristic_update(ble_ps_t *p_posture_service, uint8_t *accelValue)
 {
     // OUR_JOB: Step 3.E, Update characteristic value
     if (p_posture_service->conn_handle != BLE_CONN_HANDLE_INVALID)
