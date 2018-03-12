@@ -74,9 +74,9 @@ static uint32_t pressure_char_add(ble_ps_t * p_posture_service)
     attr_char_value.p_attr_md   = &attr_md;
     
     // Set characteristic length in number of bytes
-    attr_char_value.max_len     = 8;
-    attr_char_value.init_len    = 8;
-    uint8_t value[8]           = {0x61, 0xA4, 0xA0, 0xDF, 0x72, 0xA6,0x67, 0x11};
+    attr_char_value.max_len     = 18;
+    attr_char_value.init_len    = 18;
+    uint8_t value[18]           = {0x12, 0x34, 0x56, 0x78, 0x90, 0xCA,0xFE, 0xF0, 0x0D, 0xC0, 0xFF, 0xEE, 0xBE, 0xEF, 0x87, 0x65, 0x43, 0x21};
     attr_char_value.p_value     = value;
 
     // OUR_JOB: Step 2.E, Add our new characteristic to the service
@@ -139,9 +139,9 @@ static uint32_t accel_char_add(ble_ps_t * p_posture_service)
     attr_char_value.p_attr_md   = &attr_md;
     
     // Set characteristic length in number of bytes
-    attr_char_value.max_len     = 3;
-    attr_char_value.init_len    = 3;
-    uint8_t value[3]           = {0,0,0};
+    attr_char_value.max_len     = 8;
+    attr_char_value.init_len    = 8;
+    uint8_t value[8]           = {0x12,0x34,0x56,0x78,0x90,0x00,0x13,0x37};
     attr_char_value.p_value     = value;
 
     // OUR_JOB: Step 2.E, Add our new characteristic to the service
@@ -191,7 +191,7 @@ void pressure_characteristic_update(ble_ps_t *p_posture_service, uint8_t *pressu
     // OUR_JOB: Step 3.E, Update characteristic value
     if (p_posture_service->conn_handle != BLE_CONN_HANDLE_INVALID)
     {
-        uint16_t               len = 8;
+        uint16_t               len = 18;
         ble_gatts_hvx_params_t hvx_params;
         memset(&hvx_params, 0, sizeof(hvx_params));
 
@@ -212,7 +212,7 @@ void accel_characteristic_update(ble_ps_t *p_posture_service, int8_t *accelValue
     // OUR_JOB: Step 3.E, Update characteristic value
     if (p_posture_service->conn_handle != BLE_CONN_HANDLE_INVALID)
     {
-        uint16_t               len = 3;
+        uint16_t               len = 8;
         ble_gatts_hvx_params_t hvx_params;
         memset(&hvx_params, 0, sizeof(hvx_params));
 

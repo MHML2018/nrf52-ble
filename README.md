@@ -2,7 +2,7 @@
 Simple code to make the nRF52 communication channel to the mobile device.
 
 #How to Deploy
-Download nRF52 SDK11.0.0 from here: https://gist.github.com/bradmontgomery/2219997
+Download nRF52 SDK11.0.0 from nordic website.
 Extract repository to examples/ble_peripheral inside the SDK
 
 Make sure arm compiler is installed and configured in Makefile.posix

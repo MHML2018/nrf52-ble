@@ -61,7 +61,7 @@ ble_fbs_t m_feedback_service;
 
 // OUR_JOB: Step 3.G, Declare an app_timer id variable and define our timer interval and define a timer interval
 APP_TIMER_DEF(m_pressure_char_timer_id);
-#define PRESSURE_CHAR_TIMER_INTERVAL     APP_TIMER_TICKS(5000, APP_TIMER_PRESCALER) // 1000 ms intervals
+#define PRESSURE_CHAR_TIMER_INTERVAL     APP_TIMER_TICKS(500, APP_TIMER_PRESCALER) // 1000 ms intervals
 APP_TIMER_DEF(m_accel_char_timer_id);
 #define ACCEL_CHAR_TIMER_INTERVAL     APP_TIMER_TICKS(500, APP_TIMER_PRESCALER) // 1000 ms intervals
 
@@ -85,29 +85,94 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
 
 
 //Simulate some fake pressure data for the two classes
-uint8_t simPressure[2][8] = {{0x61, 0xA4, 0xA0, 0xDF, 0x72, 0xA6, 0x67, 0x11},{0x61, 0xF2, 0xAC, 0x63, 0x4F, 0xC8, 0x82, 0x74}};
+
+    uint8_t simButt[5][18]           = {{0x12, 0x34, 0x56, 0x78, 0x90, 0xCA,0xFE, 0xF0, 0x0D, 0xC0, 0xFF, 0xEE, 0xBE, 0xEF, 0x87, 0x65, 0x43, 0x21},\
+                                    {0x12, 0x34, 0x56, 0x78, 0x90, 0xCA,0xFE, 0xF0, 0x0D, 0xC0, 0xFF, 0xEE, 0xBE, 0xEF, 0x87, 0x65, 0x43, 0x21},\
+                            {0x12, 0x34, 0x56, 0x78, 0x90, 0xCA,0xFE, 0xF0, 0x0D, 0xC0, 0xFF, 0xEE, 0xBE, 0xEF, 0x87, 0x65, 0x43, 0x21},\
+                            {0x12, 0x34, 0x56, 0x78, 0x90, 0xCA,0xFE, 0xF0, 0x0D, 0xC0, 0xFF, 0xEE, 0xBE, 0xEF, 0x87, 0x65, 0x43, 0x21},\
+                            {0x12, 0x34, 0x56, 0x78, 0x90, 0xCA,0xFE, 0xF0, 0x0D, 0xC0, 0xFF, 0xEE, 0xBE, 0xEF, 0x87, 0x65, 0x43, 0x21}};\
+
+
+    uint8_t simBack[5][8]           = {{0x12,0x34,0x56,0x78,0x90,0x00,0x13,0x37},\
+                                        {0x12,0x34,0x56,0x78,0x90,0x00,0x13,0x37},\
+                                        {0x12,0x34,0x56,0x78,0x90,0x00,0x13,0x37},\
+                                        {0x12,0x34,0x56,0x78,0x90,0x00,0x13,0x37},\
+                                        {0x12,0x34,0x56,0x78,0x90,0x00,0x13,0x37}};
+
+
+
+//Global Circular Buffer for averaging sensor readings
+#define CIRCULAR_BUFFER_SIZE 16
+#define NUM_BUTT_SENSORS 9
+#define NUM_BACK_SENSORS 4
+#define NUM_SIM_DATA 5
+#define NUM_MUX_OUTPUTS 5
+
+uint16_t buttBuffer[CIRCULAR_BUFFER_SIZE][9] = {0};
+
+uint16_t backBuffer[CIRCULAR_BUFFER_SIZE][4] = {0};
+
+
+static void set_multiplexer(size_t i){
+    if(i>NUM_MUX_OUTPUTS){
+        //Silently throw error
+        return
+    }
+    bool mux0 = i & 0x01;
+    bool mux2 = i & 0x02;
+    bool mux3 = i & 0x04;
+    
+}
+
 
 static void pressure_timer_timeout_handler(void * p_context)
 {
-    static size_t i=0; 
-    uint8_t pressureValue[8];
-    memcpy(&pressureValue, simPressure[i], sizeof(pressureValue));
-    pressure_characteristic_update(&m_posture_service, &pressureValue[0]);
-    nrf_gpio_pin_toggle(LED_4);
+    //Create/increment simulated posture
     i++;
-    i = i%2;
+    i = i%NUM_SIM_DATA;
+    static size_t i=0; 
+    uint8_t buttValue[2*NUM_BUTT_SENSORS]={0};
+    uint8_t backValue[2*NUM_BACK_SENSORS]={0};
+    //Simulate data
+    memcpy(&buttValue, simButt[i], sizeof(buttValue));
+    memset(&backValue, simBack[i], sizeof(backValue)); 
+
+    //Alernatively, average circular buffer of sensor data
+    for(size_t k; k<NUM_BUTT_SENSORS; k++){
+        for(size_t j; j<CIRCULAR_BUFFER_SIZE;j++){
+                buttValue[k] += buttBuffer[j][k]/CIRCULAR_BUFFER_SIZE;
+        }
+    }
+    for(size_t k; k<NUM_BACK_SENSORS; k++){
+        for(size_t j; j<CIRCULAR_BUFFER_SIZE;j++){
+                backValue[k] += backBuffer[j][k]/CIRCULAR_BUFFER_SIZE;
+        }
+    }
+
+    //Push values to phone
+    pressure_characteristic_update(&m_posture_service, &buttValue[0]);
+    accel_characteristic_update(&m_posture_service, &backValue[0]);
+
+    //Blinky light to show it's working
+    nrf_gpio_pin_toggle(LED_4);
 }
 
 
 static void accel_timer_timeout_handler(void * p_context)
 {
-    // Update temperature and characteristic value.
-    int32_t temperature = 0; 
-    //Use temperature to simulate data  
-    sd_temp_get(&temperature);
-    int8_t accelValue[3];
-    memset(&accelValue, (int8_t)temperature, sizeof(accelValue)); 
-    accel_characteristic_update(&m_posture_service, &accelValue[0]);
+    //Create/increment index for circular buffer
+    static size_t i = 0;
+    i++;
+    i = i%CIRCULAR_BUFFER_SIZE;
+
+    //Sample the sensors here
+    //
+    //for numberOfSensors{
+    //buttBuffer[i][sensorNumber]=analogRead(sensorNumber)
+    //backBuffer[i][sensorNumber]=analogRead(sensorNumber)
+    //}
+    
+    //Blinky light ot show it's happening
     nrf_gpio_pin_toggle(LED_2);
 }
 
