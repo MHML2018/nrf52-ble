@@ -106,22 +106,84 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
 #define NUM_BUTT_SENSORS 9
 #define NUM_BACK_SENSORS 4
 #define NUM_SIM_DATA 5
-#define NUM_MUX_OUTPUTS 5
+#define NUM_MUX_OUTPUTS sizeof(muxPins)/sizeof(muxPins[0]);
+#define NUM_BACK_COLS sizeof(backColPins)/sizeof(backColPins[0]);
+#define NUM_BACK_COLS sizeof(buttColPins)/sizeof(buttColPins[0]);
+
 
 uint16_t buttBuffer[CIRCULAR_BUFFER_SIZE][9] = {0};
 
 uint16_t backBuffer[CIRCULAR_BUFFER_SIZE][4] = {0};
 
+uint32_t muxPins[3] = {NRF_GPIO_PIN_MAP(1,3),\
+                        NRF_GPIO_PIN_MAP(1,2),\
+                        NRF_GPIO_PIN_MAP(1,1)};
 
-static void set_multiplexer(size_t i){
-    if(i>NUM_MUX_OUTPUTS){
+uint32_t backColPins[2] = { NRF_GPIO_PIN_MAP(1,12),\
+                            NRF_GPIO_PIN_MAP(1,13)};
+
+uint32_t buttColPins[3] = { NRF_GPIO_PIN_MAP(1,4),\
+                            NRF_GPIO_PIN_MAP(1,5),\
+                            NRF_GPIO_PIN_MAP(1,6)};
+
+
+static inline void select_mux(uint8_t output){
+    if(output>NUM_MUX_OUTPUTS){
         //Silently throw error
-        return
+        return;
     }
-    bool mux0 = i & 0x01;
-    bool mux2 = i & 0x02;
-    bool mux3 = i & 0x04;
+    for(size_t i=0;i<NUM_MUX_OUPUTS/2;i++){
+        nrf_gpio_pin_write(muxPins[i], output & 1<<i);
+    }
+}
+
+static inline void select_back_col(uint8_t output){
+    if(output>sizeof(backColPins)){
+        //Silently throw error
+        return;
+    }
+    for(size_t i=0; i<sizeof(backColPins); i++){
+        if(output == i){
+            nrf_gpio_pin_set(backColPins[i]);
+        }
+        else{
+            nrf_gpio_pin_clear(backColPins[i]);
+        }
+    }
+    return;
+}
+
+static inline void select_butt_col(uint8_t output){
+    if(output>sizeof(buttColPins)){
+        //Silently throw error
+        return;
+    }
+    for(size_t i=0; i<sizeof(buttColPins); i++){
+        if(output == i){
+            nrf_gpio_pin_set(buttColPins[i]);
+        }
+        else{
+            nrf_gpio_pin_clear(buttColPins[i]);
+        }
+    }
+    return;
+}
+
+static void chair_gpio_init(){
+    for(size_t i=0; i<sizeof(muxPins); i++){
+        nrf_gpio_cfg_default(muxPins[i]);
+        nrf_gpio_cfg_output(muxPins[i]);
+    }
     
+    for(size_t i=0; i<sizeof(backColPins); i++){
+        nrf_gpio_cfg_default(backColPins[i]);
+        nrf_gpio_cfg_output(backColPins[i]);
+    }
+
+    for(size_t i=0; i<sizeof(buttColPins); i++){
+        nrf_gpio_cfg_default(buttColPins[i]);
+        nrf_gpio_cfg_output(buttColPins[i]);
+    }
 }
 
 
@@ -166,6 +228,11 @@ static void accel_timer_timeout_handler(void * p_context)
     i = i%CIRCULAR_BUFFER_SIZE;
 
     //Sample the sensors here
+    //
+    //
+    //Do maths here
+    //
+    //
     //
     //for numberOfSensors{
     //buttBuffer[i][sensorNumber]=analogRead(sensorNumber)
